@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Вариант 17 — Посещаемость вебинаров</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, system-ui, Segoe UI, Roboto, sans-serif; max-width: 960px; margin: 0 auto; padding: 24px; color: #222; }
+  h1 { margin: 0 0 4px; }
+  .sub { color: #666; margin-bottom: 20px; }
+  .info { background: #f6f8fa; border-left: 4px solid #4a7; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; }
+  .info b { display: inline-block; min-width: 130px; }
+  .btn { display: inline-block; padding: 8px 14px; background: #4a7; color: #fff; border-radius: 6px; text-decoration: none; border: 0; cursor: pointer; font-size: 14px; margin-right: 6px; }
+  .btn:hover { background: #396; }
+  .btn.alt { background: #666; }
+  .btn.alt:hover { background: #444; }
+  table { border-collapse: collapse; width: 100%; margin-top: 12px; font-size: 14px; }
+  th, td { border: 1px solid #e0e0e0; padding: 6px 10px; text-align: left; }
+  th { background: #f6f8fa; }
+  .ok { color: #2a7; font-weight: 600; }
+  .no { color: #c33; font-weight: 600; }
+  .pct { font-variant-numeric: tabular-nums; }
+  pre { background: #f6f8fa; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>Вариант 17 — Посещаемость вебинаров</h1>
+<div class="sub">REST API ВУЗа. Node.js + Express + SQLite (node:sqlite) + Swagger.</div>
+
+<div class="info">
+  <div><b>Доп. сущность:</b> Посещаемость вебинаров (webinars + webinar_attendance)</div>
+  <div><b>GET:</b> <code>/v17/api/webinars/activity</code></div>
+  <div><b>Бизнес-правило:</b> посещение засчитывается, если студент провёл в комнате &gt; 80% времени вебинара.</div>
+</div>
+
+<p>
+  <a class="btn" href="/">← К каталогу вариантов</a>
+  <a class="btn alt" href="/v17/api-docs/">Swagger UI</a>
+  <button class="btn alt" onclick="loadActivity()">Обновить</button>
+</p>
+
+<h2>Активность студентов на вебинарах</h2>
+<div id="activity">загрузка…</div>
+
+<h2>Проверка бизнес-правила</h2>
+<p>Каждая строка таблицы содержит процент пребывания и вердикт — для контроля порога 80%.</p>
+
+<script>
+async function loadActivity() {
+  const r = await fetch('/v17/api/webinars/activity');
+  const { data } = await r.json();
+  if (!Array.isArray(data) || !data.length) {
+    document.getElementById('activity').textContent = 'Нет данных';
+    return;
+  }
+  let html = '<table><tr><th>Студент</th><th>Вебинар</th><th>Длительность</th><th>В комнате</th><th>%</th><th>Засчитано</th></tr>';
+  for (const a of data) {
+    html += `<tr>
+      <td>${a.studentName}</td>
+      <td>${a.webinarTitle}</td>
+      <td>${a.durationMinutes} мин</td>
+      <td>${a.minutesInRoom} мин</td>
+      <td class="pct">${a.percentInRoom}%</td>
+      <td class="${a.attended ? 'ok' : 'no'}">${a.attended ? 'да' : 'нет'}</td>
+    </tr>`;
+  }
+  html += '</table>';
+  document.getElementById('activity').innerHTML = html;
+}
+loadActivity();
+</script>
+</body>
+</html>

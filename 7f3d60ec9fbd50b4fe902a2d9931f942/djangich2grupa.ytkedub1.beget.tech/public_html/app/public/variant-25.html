@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Вариант 25 — Разговорные клубы</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, system-ui, Segoe UI, Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 24px; color: #222; }
+  h1 { margin: 0 0 4px; }
+  .sub { color: #666; margin-bottom: 20px; }
+  .info { background: #f6f8fa; border-left: 4px solid #4a7; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; }
+  .info b { display: inline-block; min-width: 120px; }
+  .btn { display: inline-block; padding: 8px 14px; background: #4a7; color: #fff; border-radius: 6px; text-decoration: none; border: 0; cursor: pointer; font-size: 14px; }
+  .btn:hover { background: #396; }
+  .btn.alt { background: #666; }
+  .btn.alt:hover { background: #444; }
+  table { border-collapse: collapse; width: 100%; margin-top: 12px; font-size: 14px; }
+  th, td { border: 1px solid #e0e0e0; padding: 6px 10px; text-align: left; }
+  th { background: #f6f8fa; }
+  .ok { color: #2a7; font-weight: 600; }
+  .no { color: #c33; font-weight: 600; }
+  pre { background: #f6f8fa; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>Вариант 25 — Разговорные клубы</h1>
+<div class="sub">Языковая школа. Переход на следующий уровень по итогам клубов и теста.</div>
+
+<div class="info">
+  <div><b>Доп. сущность:</b> Разговорные клубы (ClubVisit) + InternalTest</div>
+  <div><b>GET:</b> <code>/api/clubs/level-up/</code> и <code>/api/clubs/level-up/{id}/</code></div>
+  <div><b>Бизнес-правило:</b> Переход на уровень выше, если посещено 10 клубов и сдан внутренний тест (score &ge; 70).</div>
+</div>
+
+<p>
+  <a class="btn" href="/">← К каталогу вариантов</a>
+  <a class="btn alt" href="/api/docs/">Swagger UI</a>
+  <button class="btn alt" onclick="loadLevelUp()">Обновить таблицу</button>
+</p>
+
+<h2>Текущие студенты</h2>
+<div id="levelup">загрузка…</div>
+
+<h2>Демонстрация правила</h2>
+<p>
+  <button class="btn" onclick="runDemo()">Запустить демо (создаст студента, 10 клубов, тест)</button>
+</p>
+<pre id="log">—</pre>
+
+<script>
+async function api(method, url, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  const text = await r.text();
+  let data; try { data = JSON.parse(text); } catch { data = text; }
+  log(method + ' ' + url + ' → ' + r.status);
+  return { status: r.status, data };
+}
+
+function log(s) {
+  const el = document.getElementById('log');
+  el.textContent = s + '\n' + el.textContent;
+}
+
+async function loadLevelUp() {
+  const r = await api('GET', '/api/clubs/level-up/');
+  if (!Array.isArray(r.data) || !r.data.length) {
+    document.getElementById('levelup').textContent = 'Пока нет студентов';
+    return;
+  }
+  let html = '<table><tr><th>ID</th><th>ФИО</th><th>Уровень</th><th>Клубов</th><th>Тест</th><th>Готов</th><th>Причина</th></tr>';
+  for (const s of r.data) {
+    html += '<tr>' +
+      '<td>' + s.student_id + '</td>' +
+      '<td>' + (s.full_name ?? '') + '</td>' +
+      '<td>' + (s.current_level ?? '') + '</td>' +
+      '<td>' + s.clubs_visited + ' / ' + s.clubs_required + '</td>' +
+      '<td>' + (s.has_passed_test ? 'да' : 'нет') + '</td>' +
+      '<td class="' + (s.eligible_for_level_up ? 'ok' : 'no') + '">' + (s.eligible_for_level_up ? 'да' : 'нет') + '</td>' +
+      '<td>' + (s.reason ?? '') + '</td>' +
+    '</tr>';
+  }
+  html += '</table>';
+  document.getElementById('levelup').innerHTML = html;
+}
+
+async function runDemo() {
+  log('=== demo start ===');
+  const s = await api('POST', '/api/students/', { full_name: 'Демо Студентов', email: 'demo-' + Date.now() + '@example.com', level: 'A1' });
+  if (s.status !== 201) { log('не удалось создать студента'); return; }
+  const sid = s.data.id;
+  for (let i = 1; i <= 10; i++) {
+    await api('POST', '/api/clubs/', { student_id: sid, club_name: 'English Club', visited_at: '2026-10-01' });
+  }
+  await api('POST', '/api/tests/', { student_id: sid, target_level: 'A2', score: 85 });
+  const v = await api('GET', '/api/clubs/level-up/' + sid + '/');
+  log('вердикт: ' + JSON.stringify(v.data));
+  await loadLevelUp();
+}
+
+loadLevelUp();
+</script>
+</body>
+</html>

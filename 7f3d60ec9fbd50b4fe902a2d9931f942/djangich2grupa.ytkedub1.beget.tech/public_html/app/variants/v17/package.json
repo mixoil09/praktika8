@@ -1,0 +1,20 @@
+{
+  "name": "university-api",
+  "version": "1.0.0",
+  "description": "Практическая работа №8. REST API ВУЗа (вариант 17 — посещаемость вебинаров). Node.js/Express + SQLite",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "seed": "node src/seed.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": ["express", "sqlite", "crud", "swagger", "university"],
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  }
+}

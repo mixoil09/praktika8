@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Варианты 1–30 — Language School API</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, system-ui, Segoe UI, Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 24px; color: #222; background: #fafbfc; }
+  h1 { margin: 0 0 4px; }
+  .sub { color: #666; margin-bottom: 20px; }
+  .toolbar { position: sticky; top: 0; background: #fafbfc; padding: 12px 0; z-index: 5; border-bottom: 1px solid #eee; margin-bottom: 20px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { padding: 6px 12px; border-radius: 20px; background: #eef2f5; color: #333; cursor: pointer; border: 1px solid transparent; font-size: 14px; user-select: none; }
+  .chip:hover { background: #e3e9ee; }
+  .chip.active { background: #4a7; color: #fff; border-color: #4a7; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 8px; transition: .15s; }
+  .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+  .card.done { border-color: #4a7; box-shadow: 0 0 0 1px #4a7; }
+  .card h3 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #eef2f5; color: #555; font-weight: 500; }
+  .badge.done { background: #4a7; color: #fff; }
+  .block { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+  .row { font-size: 13px; line-height: 1.5; }
+  .row b { color: #444; }
+  .row code { background: #f1f4f7; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+  .actions { margin-top: auto; display: flex; gap: 8px; padding-top: 8px; }
+  .btn { display: inline-block; padding: 7px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; border: 0; cursor: pointer; background: #4a7; color: #fff; }
+  .btn:hover { background: #396; }
+  .btn.ghost { background: #eef2f5; color: #333; }
+  .btn.ghost:hover { background: #e3e9ee; }
+  .btn[disabled] { opacity: .5; cursor: not-allowed; }
+  .hidden { display: none !important; }
+  .topbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<h1>Каталог вариантов</h1>
+<div class="sub">Общее ядро (Student, Group, Subject, Teacher) + один из 30 вариантов. Реализован вариант 25.</div>
+
+<div class="topbar">
+  <a class="btn" href="/variant/25">Открыть реализацию варианта 25</a>
+  <a class="btn ghost" href="/api/docs/">Swagger UI</a>
+</div>
+
+<div class="toolbar" id="filters">
+  <span class="chip active" data-block="all">Все</span>
+  <span class="chip" data-block="А">Блок А — Классический ВУЗ</span>
+  <span class="chip" data-block="Б">Блок Б — Школа</span>
+  <span class="chip" data-block="В">Блок В — Колледж</span>
+  <span class="chip" data-block="Г">Блок Г — Онлайн-школа</span>
+  <span class="chip" data-block="Д">Блок Д — Доп. образование</span>
+  <span class="chip" data-block="Е">Блок Е — Корпоративное обучение</span>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const IMPLEMENTED = 25;
+
+const VARIANTS = [
+  {n:1, block:'А', title:'Рейтинговые баллы', entity:'Рейтинговые баллы (за активность на парах)', get:'/api/students/top-rating — Топ-10 студентов группы по рейтингу', rule:'Если посещаемость < 50%, рейтинговые баллы обнуляются.'},
+  {n:2, block:'А', title:'Академическая задолженность', entity:'Академическая задолженность (Долги)', get:'/api/students/{id}/debts — Список долгов конкретного студента', rule:'Статус «Отчислен» присваивается автоматически, если долгов > 2 после пересдач.'},
+  {n:3, block:'А', title:'Допуск к сессии', entity:'Допуск к сессии', get:'/api/groups/{id}/admission — Список студентов, допущенных к экзамену', rule:'Допуск только если посещаемость по предмету >= 75%.'},
+  {n:4, block:'А', title:'Стипендия', entity:'Стипендия', get:'/api/scholarships/high — Список студентов на повышенную стипендию', rule:'Повышенная стипендия, если нет троек И посещаемость 100%.'},
+  {n:5, block:'А', title:'Индивидуальный план обучения', entity:'Индивидуальный план обучения', get:'/api/students/{id}/schedule — График ликвидации задолженности', rule:'Дедлайны сдачи долгов сдвигаются на 14 дней при наличии справки от врача.'},
+  {n:6, block:'Б', title:'Четвертные/годовые оценки', entity:'Четвертные/Годовые оценки', get:'/api/students/{id}/honor-roll — Проверка на «Аттестат отличия»', rule:'Отличник, если все четвертные и годовые оценки — «5».'},
+  {n:7, block:'Б', title:'Журнал поведения', entity:'Журнал поведения (Баллы/Замечания)', get:'/api/students/{id}/behavior-report — Отчет о поведении для родителей', rule:'Оценка за поведение не может быть выше «4», если есть > 3 пропусков без уважительной причины.'},
+  {n:8, block:'Б', title:'Группа продленного дня', entity:'Группа продленного дня', get:'/api/extended-day/capacity — Загрузка групп продленного дня', rule:'API должен отдавать ошибку 400, если при записи лимит (15 человек) превышен.'},
+  {n:9, block:'Б', title:'Элективные курсы', entity:'Элективные курсы (По выбору)', get:'/api/electives/distribution — Распределение студентов по элективам', rule:'Студент обязан выбрать элективы суммарной нагрузкой не менее 2 часов в неделю.'},
+  {n:10, block:'Б', title:'Домашние задания', entity:'Домашние задания', get:'/api/homework/overdue — Список просроченных домашних заданий по классу', rule:'Если ДЗ не сдано в течение 3 дней, оценка за него автоматически «2».'},
+  {n:11, block:'В', title:'Дневник практики', entity:'Дневник производственной практики', get:'/api/practice/{id}/report — Отчет по отработанным часам', rule:'Практика не засчитывается, если пропущено > 10% рабочих дней.'},
+  {n:12, block:'В', title:'Курсовые работы', entity:'Курсовые работы', get:'/api/courseworks/status — Статусы курсовых работ группы', rule:'Курсовая не принимается к защите, если антиплагиат < 70% (эмулировать полем в БД).'},
+  {n:13, block:'В', title:'Квалификационный экзамен', entity:'Квалификационный экзамен', get:'/api/exams/qualification/results — Результаты гос. экзамена', rule:'Допуск к гос. экзамену только если закрыты все практики и курсовые.'},
+  {n:14, block:'В', title:'Мастер-классы / Конференции', entity:'Мастер-классы / Конференции', get:'/api/events/certificates — Список выданных сертификатов', rule:'Студент получает доп. баллы к диплому только после участия минимум в 3 мероприятиях за год.'},
+  {n:15, block:'В', title:'Перезачет предметов', entity:'Перезачет предметов (при переводе)', get:'/api/transfer/credits — Сопоставление часов при переводе', rule:'Перезачет возможен, если разница в часах между предметами не более 20%.'},
+  {n:16, block:'Г', title:'Дедлайны проектов', entity:'Дедлайны сдачи проектов', get:'/api/projects/penalties — Расчет штрафных баллов за просрочку', rule:'Штраф 10% от оценки за каждый день просрочки (макс. до 0).'},
+  {n:17, block:'Г', title:'Посещаемость вебинаров', entity:'Посещаемость вебинаров (webinars + webinar_attendance)', get:'/api/webinars/activity — Активность студента на вебинаре', rule:'Посещение засчитывается, только если студент находился в комнате > 80% времени.', mounted:'v17'},  {n:18, block:'Г', title:'Менторинг / Код-ревью', entity:'Менторинг / Код-ревью', get:'/api/mentorship/progress — Прогресс по менторству', rule:'Задача считается закрытой, только если ментор поставил статус "Approved".'},
+  {n:19, block:'Г', title:'Модульные тесты', entity:'Модульные тесты', get:'/api/tests/attempts — История попыток сдачи модуля', rule:'Максимум 3 попытки. Проходной балл 80%. После 3 неудач — отчисление.'},
+  {n:20, block:'Г', title:'Выпускной проект', entity:'Выпускной проект (Командный)', get:'/api/final-projects/grades — Оценки за командный проект', rule:'Оценка проекта выставляется всей команде, но умножается на индивидуальный коэффициент вклада (от 0.8 до 1.2).'},
+  {n:21, block:'Д', title:'Учебные концерты', entity:'Учебные концерты / Выступления', get:'/api/performances/requirements — Проверка допуска к отчетному концерту', rule:'Допуск, если выучено минимум 3 произведения и посещаемость > 90%.'},
+  {n:22, block:'Д', title:'Спортивные нормативы', entity:'Спортивные нормативы', get:'/api/sports/ranks — Расчет спортивного разряда', rule:'Разряд присваивается, если сданы нормативы И посещено 100% тренировок.'},
+  {n:23, block:'Д', title:'Портфолио работ', entity:'Портфолио работ (Художественная школа)', get:'/api/portfolio/pace — Проверка темпа создания работ', rule:'Студент должен загружать минимум 1 работу в неделю, иначе статус «Отстающий».'},
+  {n:24, block:'Д', title:'Часы вождения', entity:'Часы вождения (Автошкола)', get:'/api/driving/hours — Остаток часов до допуска к экзамену', rule:'Допуск к экзамену ГИБДД строго после 54 часов вождения (валидация при записи на экзамен).'},
+  {n:25, block:'Д', title:'Разговорные клубы', entity:'Разговорные клубы (Языковая школа)', get:'/api/clubs/level-up — Проверка условий перехода на следующий уровень', rule:'Переход на уровень выше, если посещено 10 клубов и сдан внутренний тест.'},
+  {n:26, block:'Е', title:'Инструктажи по охране труда', entity:'Инструктажи по охране труда', get:'/api/safety/access — Проверка допуска сотрудника к работе', rule:'Если дата инструктажа просрочена, API возвращает статус «Заблокирован».'},
+  {n:27, block:'Е', title:'Сертификаты повышения квалификации', entity:'Сертификаты повышения квалификации', get:'/api/certifications/validity — Статус действия сертификатов', rule:'Сертификат действителен ровно 2 года (365*2 дней), после чего требует пересдачи.'},
+  {n:28, block:'Е', title:'CPD-баллы', entity:'CPD-баллы (Непрерывное развитие)', get:'/api/cpd/balance — Баланс баллов за текущий год', rule:'Сотрудник обязан набрать минимум 40 баллов за календарный год.'},
+  {n:29, block:'Е', title:'Задачи стажировки', entity:'Задачи стажировки', get:'/api/internship/weekly-report — Еженедельный отчет стажера', rule:'Если стажер не сдал еженедельный отчет до пятницы 18:00, неделя считается «Пропущенной».'},
+  {n:30, block:'Е', title:'Матрица компетенций', entity:'Матрица компетенций (Skills)', get:'/api/skills/gap-analysis — Анализ нехватки навыков', rule:'API должен возвращать список навыков, где оценка сотрудника < требуемого уровня для его должности.'}
+];
+
+const BLOCK_NAMES = {
+  'А': 'Блок А — Классический ВУЗ',
+  'Б': 'Блок Б — Общеобразовательная школа',
+  'В': 'Блок В — Колледж / Техникум',
+  'Г': 'Блок Г — Онлайн-школа / IT-курсы',
+  'Д': 'Блок Д — Дополнительное образование',
+  'Е': 'Блок Е — Корпоративное обучение'
+};
+
+let currentBlock = 'all';
+
+function render() {
+  const grid = document.getElementById('grid');
+  const list = VARIANTS.filter(v => currentBlock === 'all' || v.block === currentBlock);
+  grid.innerHTML = list.map(v => {
+    const done = v.n === IMPLEMENTED || !!v.mounted;
+    return `
+      <div class="card ${done ? 'done' : ''}">
+        <div class="block">${BLOCK_NAMES[v.block]}</div>
+        <h3>Вариант ${v.n} — ${v.title} ${done ? '<span class="badge done">реализован</span>' : '<span class="badge">описание</span>'}</h3>
+        <div class="row"><b>Доп. сущность:</b> ${v.entity}</div>
+        <div class="row"><b>GET:</b> <code>${v.get}</code></div>
+        <div class="row"><b>Бизнес-правило:</b> ${v.rule}</div>
+        <div class="actions">
+  ${v.n === IMPLEMENTED ? `<a class="btn" href="/variant/25">Открыть реализацию</a>` : ''}
+  ${v.mounted ? `<a class="btn" href="/${v.mounted}/">Открыть</a>
+                 <a class="btn ghost" href="/${v.mounted}/api-docs/">Swagger</a>` : ''}
+  ${!done ? `<button class="btn ghost" disabled>не реализован</button>` : ''}
+</div>
+      </div>
+    `;
+  }).join('');
+}
+
+document.getElementById('filters').addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  currentBlock = chip.dataset.block;
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
